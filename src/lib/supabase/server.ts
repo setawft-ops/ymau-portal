@@ -1,0 +1,15 @@
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+export function supabaseServer() {
+  const store = cookies();
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookies: { getAll: () => store.getAll(),
+      setAll: (list) => { try { list.forEach(({ name, value, options }) => store.set(name, value, options)); } catch {} } } });
+}
+export async function getSession() {
+  const sb = supabaseServer();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return { sb, user: null, role: null as string | null, name: null as string | null };
+  const { data: p } = await sb.from('profiles').select('role, full_name').eq('id', user.id).single();
+  return { sb, user, role: (p?.role ?? 'student') as string, name: p?.full_name as string | null };
+}
